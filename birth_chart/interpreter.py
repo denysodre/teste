@@ -215,10 +215,17 @@ Local: {self.chart.location_str}
         # Verificar compatibilidade
         elements_set = {sol_element, lua_element, asc_element}
 
-        if elements_set in compatible_pairs or elements_set.issubset(pair) for pair in compatible_pairs:
+        # Verificar se elementos são compatíveis
+        is_compatible = False
+        for pair in compatible_pairs:
+            if elements_set.issubset(pair) or elements_set == pair:
+                is_compatible = True
+                break
+
+        if is_compatible:
             return {
                 "harmony_level": "alta",
-                "insight": f"A mistura de {sol_element} e {lua_element} with {asc_element} funciona bem - elementos que se apoiam."
+                "insight": f"A mistura de {sol_element}, {lua_element} e {asc_element} funciona bem - elementos que se apoiam."
             }
 
         # Elementos conflitantes
