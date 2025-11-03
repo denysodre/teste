@@ -20,7 +20,7 @@ from .data import SIGNS, PLANETS, ASPECTS
 class BirthChart:
     """Classe principal para cálculo de mapa natal"""
 
-    def __init__(self, date: str, time: str, location: str, house_system: str = 'P'):
+    def __init__(self, date: str, time: str, location: str, house_system: str = 'P', timezone: str = None):
         """
         Inicializa o mapa natal
 
@@ -29,17 +29,22 @@ class BirthChart:
             time: Hora de nascimento (formato: HH:MM ou HH:MM:SS)
             location: Local de nascimento (cidade, país)
             house_system: Sistema de casas (padrão: 'P' - Placidus)
+            timezone: Timezone (ex: 'America/Sao_Paulo'). Se None, tenta detectar pelo local.
         """
         self.date_str = date
         self.time_str = time
         self.location_str = location
         self.house_system = house_system
+        self.timezone_str = timezone
 
         # Parse da data e hora
         self._parse_datetime()
 
         # Obter coordenadas do local
         self._get_coordinates()
+
+        # Detectar timezone se não fornecido
+        self._detect_timezone()
 
         # Calcular posições planetárias
         self.planets = self._calculate_planets()
@@ -90,12 +95,45 @@ class BirthChart:
             self.latitude = -23.5505
             self.longitude = -46.6333
 
+    def _detect_timezone(self):
+        """Detecta timezone baseado no local ou usa o fornecido"""
+        if self.timezone_str:
+            try:
+                self.timezone = pytz.timezone(self.timezone_str)
+                return
+            except:
+                pass
+
+        # Tentar detectar pelo país no location_str
+        location_lower = self.location_str.lower()
+
+        if 'brazil' in location_lower or 'brasil' in location_lower:
+            # Brasil tem múltiplos timezones, mas America/Sao_Paulo cobre a maior parte
+            self.timezone = pytz.timezone('America/Sao_Paulo')
+        elif 'portugal' in location_lower:
+            self.timezone = pytz.timezone('Europe/Lisbon')
+        elif 'argentina' in location_lower:
+            self.timezone = pytz.timezone('America/Argentina/Buenos_Aires')
+        else:
+            # Fallback: tentar estimar pelo longitude (aproximado)
+            # A cada 15° de longitude = 1 hora de diferença
+            hours_offset = int(self.longitude / 15)
+            # Para simplificar, usar UTC
+            self.timezone = pytz.UTC
+
     def _get_julian_day(self) -> float:
-        """Calcula o dia juliano para a data/hora de nascimento"""
-        year = self.birth_datetime.year
-        month = self.birth_datetime.month
-        day = self.birth_datetime.day
-        hour = self.birth_datetime.hour + self.birth_datetime.minute / 60.0 + self.birth_datetime.second / 3600.0
+        """Calcula o dia juliano para a data/hora de nascimento (convertendo para UTC)"""
+        # Localizar a data/hora no timezone correto
+        dt_local = self.timezone.localize(self.birth_datetime)
+
+        # Converter para UTC
+        dt_utc = dt_local.astimezone(pytz.UTC)
+
+        # Calcular Julian Day usando hora UTC
+        year = dt_utc.year
+        month = dt_utc.month
+        day = dt_utc.day
+        hour = dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
 
         jd = swe.julday(year, month, day, hour)
         return jd
