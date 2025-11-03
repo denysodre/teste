@@ -9,8 +9,12 @@ import pytz
 from geopy.geocoders import Nominatim
 from typing import Dict, List, Tuple, Optional
 import math
+import os
 
 from .data import SIGNS, PLANETS, ASPECTS
+
+# Nota: Usando Moshier ephemeris embutida (FLG_MOSEPH) - não requer arquivos externos
+# Para máxima precisão, baixe arquivos .se1 e configure com swe.set_ephe_path()
 
 
 class BirthChart:
@@ -118,26 +122,30 @@ class BirthChart:
                 actual_id = planet_id
                 data_key = 11
 
-            # Calcular posição
-            result = swe.calc_ut(jd, actual_id)
-            position = result[0][0]  # Longitude eclíptica
-            speed = result[0][3]     # Velocidade
+            try:
+                # Calcular posição (usando Moshier ephemeris embutida)
+                result = swe.calc_ut(jd, actual_id, swe.FLG_MOSEPH)
+                position = result[0][0]  # Longitude eclíptica
+                speed = result[0][3]     # Velocidade
 
-            # Determinar signo e grau
-            sign_num = int(position / 30)
-            degree = position % 30
+                # Determinar signo e grau
+                sign_num = int(position / 30)
+                degree = position % 30
 
-            planets_data[data_key] = {
-                "name": PLANETS[data_key]["name"],
-                "symbol": PLANETS[data_key]["symbol"],
-                "position": position,
-                "sign": SIGNS[sign_num],
-                "degree": degree,
-                "degree_int": int(degree),
-                "minute": int((degree % 1) * 60),
-                "speed": speed,
-                "retrograde": speed < 0
-            }
+                planets_data[data_key] = {
+                    "name": PLANETS[data_key]["name"],
+                    "symbol": PLANETS[data_key]["symbol"],
+                    "position": position,
+                    "sign": SIGNS[sign_num],
+                    "degree": degree,
+                    "degree_int": int(degree),
+                    "minute": int((degree % 1) * 60),
+                    "speed": speed,
+                    "retrograde": speed < 0
+                }
+            except Exception:
+                # Ignorar planetas não disponíveis no Moshier (ex: Quiron)
+                continue
 
         return planets_data
 
